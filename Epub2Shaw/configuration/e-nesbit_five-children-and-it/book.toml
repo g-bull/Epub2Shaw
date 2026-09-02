@@ -6,6 +6,6 @@ format = "HTML" # other option is "EPUB"
 input_filename  = "./unzip/e-nesbit_five-children-and-it/epub/text/chapter-1.xhtml"
 output_filename = "./out/chapter-1.xhtml"
 
-words_filename = "custom/words.json"
+words_filename = "./configuration/e-nesbit_five-children-and-it/words.json"
 
-phrases_filename = "custom/phrases.json"
+phrases_filename = "./configuration/e-nesbit_five-children-and-it/phrases.txt"

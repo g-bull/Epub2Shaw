@@ -1,3 +1,9 @@
+# SPDX-FileCopyrightText: 2026 Geoff Bull
+# SPDX-License-Identifier: MIT
+#
+# Significant portions of the code in this file is derived from https://github.com/Shavian-info/readlex.
+# Readlex is Copyright (c) 2024 Shavian-info
+
 import re
 import unidecode
 import smartypants
