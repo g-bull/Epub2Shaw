@@ -1,0 +1,4 @@
+[default]
+
+words_filename = "./readlex/static/readlex_converter.json"
+phrases_filename = "./readlex/static/readlex_converter_phrases.json"
