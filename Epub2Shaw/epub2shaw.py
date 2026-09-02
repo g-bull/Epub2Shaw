@@ -5,9 +5,6 @@ import tomllib
 
 from bs4 import BeautifulSoup, NavigableString, Comment
 
-import ebooklib
-from ebooklib import epub
-
 from Transliterators import Transliterator
 
 # Check if arguments were passed
@@ -117,37 +114,5 @@ if "book" in config and ("input_filename" in config["book"]):
         print()
         
     print("HTML translation complete!")
-
-"""
-book = epub.read_epub(input_file)
-items = list(book.get_items_of_type(ebooklib.ITEM_DOCUMENT))
-
-title = book.get_metadata('DC', 'title')[0][0]
-text = title
-print(text)
-shaw = latin2shaw(text)
-print(shaw)
-"""
-"""
-if 'http://purl.org/dc/elements/1.1/' in book.metadata:
-    metadata = book.metadata['http://purl.org/dc/elements/1.1/']
-    if 'title' in metadata:
-       metadata['title'] = []
-
-    if 'description' in metadata:
-        metadata['description'] = []
-
-book.set_title("The Book of the Mysterious")
-book.add_metadata("DC", "description", "A mysterious journey into hidden secrets")
-
-print(book.get_metadata('DC', 'title'))
-print(book.get_metadata('DC', 'description'))
-
-#print(book.metadata)
-
-for item in items:
-    print(item.get_name())
-#    print(item.get_content())
-"""
 
 

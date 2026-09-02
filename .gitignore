@@ -1,3 +1,8 @@
+# Data folders
+epub/
+out/
+unzip/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -216,3 +221,5 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+Epub2Shaw/scratch.txt
+shavian-tools.code-workspace
