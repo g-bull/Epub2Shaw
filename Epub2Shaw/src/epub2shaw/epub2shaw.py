@@ -5,7 +5,10 @@ import io
 import json
 import csv
 import sys
+from io import StringIO
+
 import tomllib
+from importlib import resources
 
 from pathlib import Path
 import zipfile
@@ -22,14 +25,14 @@ if len(sys.argv) != 2:
 config_filename = sys.argv[1]
 
 with open("config.toml", "rb") as f:
-    config = tomllib.load(f)
+    config_toml = resources.files("epub2shaw.data").joinpath("config.toml").read_text(encoding="utf-8")
+    config = tomllib.load(config_toml)
 
 with open(config_filename, "rb") as f:
     config |= tomllib.load(f)
 
-with open(config["default"]["words_filename"], 'r', encoding="utf-8") as file:
-    json_data = file.read()    
-    readlex_dict: dict[str, list[dict[str, str]]] = json.loads(json_data)
+readlex_dict_json = resources.files("epub2shaw.data.readlex").joinpath("readlex_converter.json").read_text(encoding="utf-8")
+readlex_dict: dict[str, list[dict[str, str]]] = json.loads(readlex_dict_json)
 
 if "book" in config and ("words_filename" in config["book"]):
     with open(config["book"]["words_filename"], 'r', encoding="utf-8") as file:
@@ -37,12 +40,12 @@ if "book" in config and ("words_filename" in config["book"]):
         extra_dict: dict[str, list[dict[str, str]]] = json.loads(json_data)
         readlex_dict |= extra_dict
 
-with open(config["default"]["phrases_filename"], "r", newline="") as f:
-    reader = csv.reader(f)
-    phrases = [row[0] for row in reader if row]
+with resources.files("epub2shaw.data.readlex").joinpath("readlex_converter_phrases.json").open(mode="r", encoding="utf-8", newline="") as f:
+    csv_reader = csv.reader(f)
+    phrases = [row[0] for row in csv_reader if row]
 
 if "book" in config and ("phrases_filename" in config["book"]):
-    with open(config["book"]["phrases_filename"], "r", newline="") as f:
+    with open(config["book"]["phrases_filename"], "r", newline="", encoding="utf-8") as f:
         reader = csv.reader(f)
         phrases += [row[0] for row in reader if row]
 
