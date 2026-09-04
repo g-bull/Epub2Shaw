@@ -1,10 +1,9 @@
 
 [book]
 
-format = "HTML" # other option is "EPUB"
+input_filename  = "./epub/arthur-conan-doyle_a-study-in-scarlet.epub"
+output_dir = "./out"
 
-input_filename  = "./unzip/arthur-conan-doyle_a-study-in-scarlet/epub/toc.xhtml"
-output_filename = "./out/arthur-conan-doyle_a-study-in-scarlet/epub/toc.xhtml"
 
 words_filename = "./configuration/arthur-conan-doyle_a-study-in-scarlet/words.json"
 

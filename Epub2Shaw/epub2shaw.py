@@ -1,10 +1,14 @@
 # SPDX-FileCopyrightText: 2026 Geoff Bull
 # SPDX-License-Identifier: MIT
 
+import io
 import json
 import csv
 import sys
 import tomllib
+
+from pathlib import Path
+import zipfile
 
 
 from Transliterators import Transliterator
@@ -43,40 +47,84 @@ if "book" in config and ("phrases_filename" in config["book"]):
         phrases += [row[0] for row in reader if row]
 
 
+if ("book" not in config) or ("input_filename" not in config["book"]):
+    print("Input file not specified")
+    exit(1)
+
+input_filename = config["book"]["input_filename"]
+
+input_path = Path(input_filename)
+
+if not input_path.exists():
+    print("Input file doesn't exist: " + input_filename)
+    exit(1)
+
+if not input_path.is_file():
+    print("Input file must be must a file: " + input_filename)
+    exit(1)
+
+if not (input_path.suffix == '.epub'):
+    print("Input file must be must an epub file: " + input_filename)
+    exit(1)
+
+if "output_dir" not in config["book"]:
+    print("Output directory not specified.")
+    exit(1)
+
+output_dir = config["book"]["output_dir"]
+output_dir_path = Path(output_dir)
+
+if not output_dir_path.exists():
+    print("Output directory doesn't exist: " + output_dir)
+    exit(1)
+
+if not output_dir_path.is_dir():
+    print("Output director must be must a directory: " + output_dir)
+    exit(1)
+
+output_basename_suffix = config["default"]["output_basename_suffix"]
+output_file = output_dir + "/" + input_path.stem + output_basename_suffix + ".epub"
+
 transliterator = Transliterator(readlex_dict, phrases)
 
-if "book" in config and ("input_filename" in config["book"]):
-    # for now assume config["book"]["format"] == "HTML"
+with zipfile.ZipFile(input_filename, "r") as input_epub:
 
-    input_filename = config["book"]["input_filename"]
+    output_buffer = io.BytesIO()
 
+    with zipfile.ZipFile(output_buffer, 'w', zipfile.ZIP_DEFLATED) as output_epub:
+    
+        for item in input_epub.infolist():
+            if not item.filename.endswith(".xhtml"):
+                # just copy not HTML files to new epub
+                output_epub.writestr(item, input_epub.read(item.filename))
+            else:
+                # Transliterate HTML files before writing them
+                print(item.filename)
+                with input_epub.open(item.filename) as binary_file:
+                    # Decode bytes into a text stream
+                    with io.TextIOWrapper(binary_file, encoding='utf-8') as text_file:
+                        xhtml_content = text_file.read()
 
-    # 1. Load your local HTML file
-    with open(input_filename, "r", encoding="utf-8") as f:
-        print(input_filename)
-        xhtml_content = f.read()
+                transliterated_content = html2shaw(xhtml_content, transliterator)
+                output_epub.writestr(item.filename, transliterated_content)
 
-    transliterated_content = html2shaw(xhtml_content, transliterator)
-
-    # Save the transliterated HTML
-    if "output_filename" in config["book"]:
-        with open(config["book"]["output_filename"], "w", encoding="utf-8") as f:
-            f.write(transliterated_content)
+    with open(output_file, 'wb') as f:
+        f.write(output_buffer.getvalue())
+            
 
     constructed_words = transliterator.get_constructed_words()
     if len(constructed_words) > 0:
-        print("Constructed words from " + config["book"]["output_filename"] + ":")
+        print("Constructed words:")
         for word, transliteration in constructed_words.items():
             print("    " + word + "  ->  " + transliteration)
         print()
 
     unknown_words = transliterator.get_unknown_words()
     if len(unknown_words) > 0:
-        print("Unknown words in " + config["book"]["output_filename"] + ":")
+        print("Unknown words:")
         for word in unknown_words.keys():
             print("    " + word)
         print()
         
     print("HTML translation complete!")
-
 
