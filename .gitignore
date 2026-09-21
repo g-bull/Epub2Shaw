@@ -222,4 +222,4 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 Epub2Shaw/scratch.txt
-shavian-tools.code-workspace
+*.code-workspace
