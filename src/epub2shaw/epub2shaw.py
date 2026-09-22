@@ -14,8 +14,8 @@ from pathlib import Path
 import zipfile
 
 
-from Transliterators import Transliterator
-from html2shaw import html2shaw
+from .Transliterators import Transliterator
+from .html2shaw import html2shaw
 
 # Check if arguments were passed
 if len(sys.argv) != 2:

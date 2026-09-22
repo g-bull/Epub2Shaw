@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 from bs4 import BeautifulSoup, NavigableString, Comment
-from Transliterators import Transliterator
+from .Transliterators import Transliterator
 
 def html2shaw(xhtml_content: str, transliterator: Transliterator):
     

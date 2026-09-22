@@ -7,10 +7,15 @@ authors = [
     { name = "geoff", email = "geoff.b.bull@gmail.com" }
 ]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "bs4>=0.0.2",
+    "smartypants>=2.0.2",
+    "spacy>=3.8.16",
+    "unidecode>=1.4.0",
+]
 
 [project.scripts]
-epub2shaw = "epub2shaw:main"
+epub2shaw = "epub2shaw:epub2shaw"
 
 [build-system]
 requires = ["uv_build>=0.12.9,<0.13.0"]
