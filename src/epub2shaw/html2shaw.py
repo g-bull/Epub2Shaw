@@ -12,6 +12,10 @@ def html2shaw(xhtml_content: str, transliterator: Transliterator):
         parts = xhtml_content.split("?>", 1)
         xml_header = parts[0] + "?>\n"  # Save the header string
         xhtml_content = parts[1].strip()
+    elif xhtml_content.startswith("<!DOCTYPE"):
+        parts = xhtml_content.split(">", 1)
+        xml_header = parts[0] + ">\n"  # Save the header string
+        xhtml_content = parts[1].strip()
 
     soup = BeautifulSoup(xhtml_content, "html.parser")
 

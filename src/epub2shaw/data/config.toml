@@ -4,3 +4,39 @@ phrases_filename = "./readlex/static/readlex_converter_phrases.json"
 
 output_basename_suffix = "-shavian"
 
+# Insert the following inside the the content.opf <manifest> element.
+[[content_manifest]]
+href="css/shavian-fonts.css"
+id="shavian-fonts.css"
+media-type="text/css"
+
+[[content_manifest]]
+href="fonts/DoolittleGaramond-Italic.otf"
+id="DoolittleGaramond-Italic.otf"
+media-type="application/vnd.ms-opentype"
+
+[[content_manifest]]
+href="fonts/DoolittleGaramond-Regular.otf"
+id="DoolittleGaramond-Regular.otf"
+media-type="application/vnd.ms-opentype"
+
+
+#"""
+#		<item href="css/shavian-fonts.css" id="shavian-fonts.css" media-type="text/css"/>
+#        <item href="fonts/DoolittleGaramond-Italic.otf" id="DoolittleGaramond-Italic.otf" media-type="application/vnd.ms-opentype"/>
+#		<item href="fonts/DoolittleGaramond-Regular.otf" id="DoolittleGaramond-Regular.otf" media-type="application/vnd.ms-opentype"/>
+#"""
+
+# Insert the following as the last link inside the xhtml <head> element.
+# The href is relative to the xhtml, so will need to be adjusted depending on
+# the xhmtl location. 
+[[css_link]]
+href="css/shavian-fonts.css"
+rel="stylesheet"
+type="text/css"
+
+
+#"""
+#		<link href="css/shavian-fonts.css" rel="stylesheet" type="text/css"/>
+#"""
+

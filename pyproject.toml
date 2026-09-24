@@ -9,13 +9,14 @@ authors = [
 requires-python = ">=3.12"
 dependencies = [
     "bs4>=0.0.2",
+    "lxml>=6.1.3",
     "smartypants>=2.0.2",
     "spacy>=3.8.16",
     "unidecode>=1.4.0",
 ]
 
 [project.scripts]
-epub2shaw = "epub2shaw:epub2shaw"
+epub2shaw = "epub2shaw.epub_convert:main"
 
 [build-system]
 requires = ["uv_build>=0.12.9,<0.13.0"]
