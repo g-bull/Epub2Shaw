@@ -19,10 +19,11 @@ def html2shaw(xhtml_content: str, transliterator: Transliterator):
     SKIPPED_TAGS = {"script", "style", "meta", "head", "title"}
 
     # Iterate through all text nodes in the document tree
-    # Skip deliniated roman numerals
+    # Skip deliniated roman numerals and foreign languages
     for text_node in soup.find_all(
         string=lambda text: (text.parent 
                              and text.parent.get('epub:type') != 'z3998:ordinal z3998:roman' 
+                             and text.parent.get('lang') != 'de' 
                              and text.parent.get('lang') != 'fr' 
                              and text.parent.get('lang') != 'la')
         ):
@@ -42,11 +43,19 @@ def html2shaw(xhtml_content: str, transliterator: Transliterator):
 
         try:
             # Transliterate the text fragment
-            translated_text = transliterator.transliterate(clean_text)
-            
+            try:
+                translated_text = transliterator.transliterate(clean_text)
+            except Exception as e:
+                print(f"Caught while transliterating '{clean_text}' due to error: {e}")
+                raise
+
             # Replace the original node content with the transliterated version
             # Using .replace_with() keeps the exact HTML structure intact
-            text_node.replace_with(NavigableString(translated_text))
+            try:
+                text_node.replace_with(NavigableString(translated_text))
+            except Exception as e:
+                print(f"Caught while replacing '{clean_text}' due to error: {e}")
+                raise
         except Exception as e:
             print(f"Skipped transliterating '{clean_text}' due to error: {e}")
 
