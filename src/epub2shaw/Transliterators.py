@@ -345,7 +345,7 @@ class Transliterator:
                                 text_split_shaw += prefix + i[
                                     "Shaw"] + suffix + constructed_warning + token.whitespace_
 
-                                self.constructed_words[token.text] = prefix + i["Shaw"] + suffix
+                                self.constructed_words[token.text.lower()] = prefix + i["Shaw"] + suffix
                                 break
 
                     if found is not False:
@@ -354,7 +354,7 @@ class Transliterator:
                     if token.text.isalpha():
                         text_split_shaw += token.text + "✢" + token.whitespace_
 
-                        self.unknown_words[token.text] = ""
+                        self.unknown_words[token.text.lower()] = token.text.lower()
                     else:
                         text_split_shaw += token.text + token.whitespace_
 
