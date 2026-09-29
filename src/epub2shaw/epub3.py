@@ -15,7 +15,8 @@ from importlib import resources
 from pathlib import Path
 import zipfile
 
-#from bs4 import BeautifulSoup
+
+opf_namespace = "http://www.idpf.org/2007/opf"
 
 #class Package:
 class Epub3_Exception(Exception):
@@ -69,10 +70,32 @@ class Manifest_Item:
     def __str__(self):
         return str(f"Item: href =\"{self.href}\" id =\"{self.id}\" media-type=\"{self.media_type}\" properties=\"{properties}\"")
 
+class Spine:
+
+   
+    def __init__(self, element: etree.ElementTree):
+        self.id: str  | None = element.get("id")
+        self.page_progression_direction: str  | None = element.get("page-progression-direction")
+        self.toc: str  | None = element.get("toc")
+
+        self.idrefs = []
+        for child in element:
+            if child.tag != "{%s}itemref" % opf_namespace:
+                raise Unexpected_Element_Exception(f"Unexpected element: \"{child.tag}\", expected \"itemref\"")
+            idref = child.attrib.get("idref")
+            self.idrefs.append(idref)
+
+        for item in self.idrefs:
+            print(item)
+
+
+    def __str__(self):
+        return str(f"Item: href =\"{self.href}\" id =\"{self.id}\" media-type=\"{self.media_type}\" properties=\"{properties}\"")
+
+
+
 
 class Package:
-
-    opf_namespace = "http://www.idpf.org/2007/opf"
 
     def __init__(self, tree: etree.ElementTree | None = None):
         self.root = None
@@ -88,8 +111,8 @@ class Package:
             self.root = self.tree.getroot()
 
             tag = etree.QName(self.root.tag)
-            if tag.namespace != self.opf_namespace:
-                raise Namespace_Exception(f"OPF package namespace is incorrect: \"{tag.namespace}\", expected \"{self.opf_namespace}\"")
+            if tag.namespace != opf_namespace:
+                raise Namespace_Exception(f"OPF package namespace is incorrect: \"{tag.namespace}\", expected \"{opf_namespace}\"")
             if tag.localname != "package":
                 raise Unexpected_Element_Exception(f"Unexpected element: \"{tag.localname}\", expected \"package\"")
 
@@ -106,19 +129,19 @@ class Package:
                     bindings [0 or 1] (deprecated)
                     collection [0 or more]
                 """
-                if child.tag == "{%s}metadata" % self.opf_namespace:
+                if child.tag == "{%s}metadata" % opf_namespace:
                     print("metadata")
                     print(child.attrib)
-                elif child.tag == "{%s}manifest" % self.opf_namespace:
+                elif child.tag == "{%s}manifest" % opf_namespace:
                     print("manifest")
                     self.manifest = self._parse_manifest(child)
-                elif child.tag == "{%s}spine" % self.opf_namespace:
-                    print("spine")
-                elif child.tag == "{%s}guide" % self.opf_namespace:
+                elif child.tag == "{%s}spine" % opf_namespace:
+                    self.spine = Spine(child)
+                elif child.tag == "{%s}guide" % opf_namespace:
                     print("guide")
-                elif child.tag == "{%s}bindings" % self.opf_namespace:
+                elif child.tag == "{%s}bindings" % opf_namespace:
                     raise Unsupported_Feature_EXception("binding in a package element not supported yet!")
-                elif child.tag == "{%s}collection" % self.opf_namespace:
+                elif child.tag == "{%s}collection" % opf_namespace:
                     raise Unsupported_Feature_EXception("collection in a package element not supported yet!")
                 else:
                     raise Unexpected_Element_Exception(f"Unexpected element: \"{child.tag}\"")
@@ -126,6 +149,8 @@ class Package:
     def _parse_manifest(self, element):
         manifest = {}
         for child in element:
+            if child.tag != "{%s}item"  % opf_namespace:
+                raise Unexpected_Element_Exception(f"Unexpected element: \"{child.tag}\", expected \"item\"")
             href = child.attrib.get("href")
             id = child.attrib.get("id")
             media_type = child.attrib.get("media-type")
@@ -142,6 +167,7 @@ class Package:
         for item in manifest:
             print(item)
         return manifest
+
 
 
 
