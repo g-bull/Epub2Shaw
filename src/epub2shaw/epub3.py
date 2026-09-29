@@ -17,6 +17,37 @@ import zipfile
 
 
 opf_namespace = "http://www.idpf.org/2007/opf"
+dc_namespace = "http://purl.org/dc/elements/1.1/"
+
+opf_tag = { tag : f"{{{opf_namespace}}}{tag}" for tag in [
+    "package", 
+    "metadata",
+    "meta",
+    "link",
+    "manifest",
+    "item",
+    "spine",
+    "itemref",
+    "guide",
+    "reference",
+    "bindings",
+    "collection"]
+}
+
+dc_tag = { tag : f"{{{dc_namespace}}}{tag}" for tag in [
+    "identifier", 
+    "date",
+    "rights",
+    "publisher",
+    "contributor",
+    "title",
+    "subject",
+    "description",
+    "language",
+    "source",
+    "creator"]
+}
+
 
 #class Package:
 class Epub3_Exception(Exception):
@@ -51,6 +82,48 @@ class Unsupported_Feature_EXception(Epub3_Exception):
         return repr(self.msg)
 
     
+class Metadata:
+    """
+    The metadata element encapsulates meta information.
+    REQUIRED first child of package.
+
+    Attributes:None
+
+    Content Model: (In any order)
+        dc:identifier [1 or more]
+        dc:title [1 or more]
+        dc:language [1 or more]
+        Dublin Core Optional Elements [0 or more]
+        meta [1 or more]
+        OPF2 meta [0 or more] (legacy)
+        link [0 or more]
+    """
+   
+    def __init__(self, element: etree.ElementTree):
+        print(element.tag)
+
+        self.items = []
+        for child in element:
+            print(child.tag)
+            """
+            if child.tag != opf_tag[]"item"]:
+                raise Unexpected_Element_Exception(f"Unexpected element: \"{child.tag}\", expected \"{opf_tag["item"}\"")
+            href = child.attrib.get("href")
+            id = child.attrib.get("id")
+            media_type = child.attrib.get("media-type")
+            fallback = child.attrib.get("fallback")
+            media_overlay = child.attrib.get("media-overlay")
+            properties = child.attrib.get("properties")
+
+            
+            self.items[id] = Manifest_Item(href=href, id=id, media_type=media_type, 
+                                         fallback=fallback,
+                                         media_overlay=media_overlay,
+                                         properties=properties
+                                         )
+            for item in self.items.values():
+                print(f"Manifest item: {item}")
+            """
     
 
 class Manifest_Item:
@@ -65,7 +138,7 @@ class Manifest_Item:
         self.fallback: str | None = fallback
         media_overlay: str | None = media_overlay
         self.properties: str | None = properties
-        self.content: bytes | None = None
+        self.data: bytes | None = None
 
     def __str__(self):
         return str(f"Item: href =\"{self.href}\" id =\"{self.id}\" media-type=\"{self.media_type}\" properties=\"{self.properties}\"")
@@ -78,8 +151,8 @@ class Manifest:
 
         self.items = {}
         for child in element:
-            if child.tag != "{%s}item"  % opf_namespace:
-                raise Unexpected_Element_Exception(f"Unexpected element: \"{child.tag}\", expected \"item\"")
+            if child.tag != opf_tag["item"]:
+                raise Unexpected_Element_Exception(f"Unexpected element: \"{child.tag}\", expected \"{opf_tag["item"]}\"")
             href = child.attrib.get("href")
             id = child.attrib.get("id")
             media_type = child.attrib.get("media-type")
@@ -112,8 +185,8 @@ class Spine:
 
         self.idrefs = []
         for child in element:
-            if child.tag != "{%s}itemref" % opf_namespace:
-                raise Unexpected_Element_Exception(f"Unexpected element: \"{child.tag}\", expected \"itemref\"")
+            if child.tag != opf_tag["itemref"]:
+                raise Unexpected_Element_Exception(f"Unexpected element: \"{child.tag}\", expected \"{opf_tag["itemref"]}\"")
             idref = child.attrib.get("idref")
             self.idrefs.append(idref)
 
@@ -142,13 +215,13 @@ class Guide:
 
    
     def __init__(self, element: etree.ElementTree):
-        self.attribs: dict  | None = element.attribs()
+        self.attribs: dict  | None = element.attrib
 
         self.refs = []
         for child in element:
-            if child.tag != "{%s}reference" % opf_namespace:
-                raise Unexpected_Element_Exception(f"Unexpected element: \"{child.tag}\", expected \"reference\"")
-            self.idrefs.append(child.attribs)
+            if child.tag != opf_tag["reference"]:
+                raise Unexpected_Element_Exception(f"Unexpected element: \"{child.tag}\", expected \"{opf_tag["reference"]}\"")
+            self.refs.append(child.attrib)
 
         for item in self.refs:
             print(f"Guide item: {item}")
@@ -156,7 +229,6 @@ class Guide:
 
     def __str__(self):
         return str(f"Item: href =\"{self.href}\" id =\"{self.id}\" media-type=\"{self.media_type}\" properties=\"{properties}\"")
-
 
 
 
@@ -179,7 +251,7 @@ class Package:
             if tag.namespace != opf_namespace:
                 raise Namespace_Exception(f"OPF package namespace is incorrect: \"{tag.namespace}\", expected \"{opf_namespace}\"")
             if tag.localname != "package":
-                raise Unexpected_Element_Exception(f"Unexpected element: \"{tag.localname}\", expected \"package\"")
+                raise Unexpected_Element_Exception(f"Unexpected element: \"{tag.localname}\", expected \"{opf_tag["package"]}\"")
 
 
             print(self.root.tag)
@@ -194,19 +266,17 @@ class Package:
                     bindings [0 or 1] (deprecated)
                     collection [0 or more]
                 """
-                if child.tag == "{%s}metadata" % opf_namespace:
-                    print("metadata")
-                    print(child.attrib)
-                elif child.tag == "{%s}manifest" % opf_namespace:
-                    print("manifest")
+                if child.tag == opf_tag["metadata"]:
+                    self.metadata = Metadata(child)
+                elif child.tag == opf_tag["manifest"]:
                     self.manifest = Manifest(child)
-                elif child.tag == "{%s}spine" % opf_namespace:
+                elif child.tag == opf_tag["spine"]:
                     self.spine = Spine(child)
-                elif child.tag == "{%s}guide" % opf_namespace:
-                    print("guide")
-                elif child.tag == "{%s}bindings" % opf_namespace:
+                elif child.tag == opf_tag["guide"]:
+                    self.guide = Guide(child)
+                elif child.tag == opf_tag["bindings"]:
                     raise Unsupported_Feature_EXception("binding in a package element not supported yet!")
-                elif child.tag == "{%s}collection" % opf_namespace:
+                elif child.tag == opf_tag["collection"]:
                     raise Unsupported_Feature_EXception("collection in a package element not supported yet!")
                 else:
                     raise Unexpected_Element_Exception(f"Unexpected element: \"{child.tag}\"")
