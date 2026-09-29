@@ -94,7 +94,7 @@ class Manifest:
                                          )
 
         for item in self.items.values():
-            print(item)
+            print(f"Manifest item: {item}")
 
 
 
@@ -118,7 +118,40 @@ class Spine:
             self.idrefs.append(idref)
 
         for item in self.idrefs:
-            print(item)
+            print(f"Spine item: {item}")
+
+
+    def __str__(self):
+        return str(f"Item: href =\"{self.href}\" id =\"{self.id}\" media-type=\"{self.media_type}\" properties=\"{properties}\"")
+
+
+class Guide:
+
+    # This is only for legacy EPub2, but mamny epub3 files contain a guide.
+    """
+        There may be one guide element, containing one or more reference elements.
+        The guide element identifies fundamental structural components of the publication, to enable Reading Systems to provide convenient access to them.
+
+        For example:
+        <guide>
+                <reference type="toc" title="Table of Contents" href="toc.html" />
+                <reference type="loi" title="List Of Illustrations" href="toc.html#figures" />
+                <reference type="other.intro" title="Introduction" href="intro.html" />
+        </guide>
+    """
+
+   
+    def __init__(self, element: etree.ElementTree):
+        self.attribs: dict  | None = element.attribs()
+
+        self.refs = []
+        for child in element:
+            if child.tag != "{%s}reference" % opf_namespace:
+                raise Unexpected_Element_Exception(f"Unexpected element: \"{child.tag}\", expected \"reference\"")
+            self.idrefs.append(child.attribs)
+
+        for item in self.refs:
+            print(f"Guide item: {item}")
 
 
     def __str__(self):
