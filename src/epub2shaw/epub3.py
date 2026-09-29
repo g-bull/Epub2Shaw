@@ -193,7 +193,6 @@ class Spine:
         for item in self.idrefs:
             print(f"Spine item: {item}")
 
-
     def __str__(self):
         return str(f"Item: href =\"{self.href}\" id =\"{self.id}\" media-type=\"{self.media_type}\" properties=\"{properties}\"")
 
