@@ -194,7 +194,7 @@ class Manifest:
     def get_data(self, id):
 
         if id in self.items:
-            return self.items[id].get_data(data)
+            return self.items[id].get_data()
         else:
             raise Epub3_Exception(f"Failed to get data for non-existent manifest id:: \"{id}\"")
 
@@ -351,9 +351,16 @@ class EPub_Reader:
         if self.archive:
             self.archive.close()
 
-    def item_list(self):
-        self.package.item_list()
+    # Temporary since we can't  generate a opf file yet
+    def read_file(self, path):
+        return self.archive.read(path)
 
+    def item_list(self):
+        return self.package.item_list()
+
+    def get_data(self, id: str):
+        return self.package.get_data(id)
+    
     def _read_package(self):
         with self.archive.open(self.root_path) as xml_file:
             return Package(tree=etree.parse(xml_file))

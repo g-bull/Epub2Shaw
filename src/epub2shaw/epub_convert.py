@@ -97,41 +97,61 @@ def main():
 
     transliterator = Transliterator(readlex_dict, phrases)
 
-    with EPub_Reader(input_path) as e:
-        print(e.root_path)
-
-    with zipfile.ZipFile(input_path, "r") as input_epub:
-
+    with EPub_Reader(input_path) as reader:
+        items = reader.item_list()
 
         output_buffer = io.BytesIO()
 
         with zipfile.ZipFile(output_buffer, 'w', zipfile.ZIP_DEFLATED) as output_epub:
 
-            for d in ["fonts", "css" ]:
+            # write the mimetype tpo the archive
+            output_epub.writestr("mimetype", "application/epub+zip\n")
+
+            container_filename = "META-INF/container.xml"
+
+            container_xml = f"""
+            <?xml version="1.0" encoding="utf-8"?>
+            <container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0">
+                <rootfiles>
+                    <rootfile full-path="{reader.root_path}" media-type="application/oebps-package+xml"/>
+                </rootfiles>
+            </container>
+            """
+            output_epub.writestr(container_filename, container_xml)
+            output_epub.writestr(reader.root_path, reader.read_file(reader.root_path))
+
+
+            for item in items:
+                id = item["id"]
+                href = item["href"]
+                epub_path = (reader.root_dir.joinpath(href)).as_posix() 
+
+                data = reader.get_data(id)
+                #data  = self.archive.read(epub_path)
+
+                if not epub_path.endswith(".xhtml"):
+                    # just copy not HTML files to new epub
+                    print(f"not-HTML file {epub_path}")
+                    #data = input_epub.read(filename)
+                    output_epub.writestr(epub_path, data)
+                else:
+                    # Transliterate HTML files before writing them
+                    print(f"Transliterating: \"{epub_path}\"")
+                    xhtml_content = data.decode('utf-8')
+
+                    transliterated_content = html2shaw(xhtml_content, transliterator)
+                    output_epub.writestr(epub_path, transliterated_content)
+
+        with open(output_file, 'wb') as f:
+            f.write(output_buffer.getvalue())
+
+        """
+        for d in ["fonts", "css" ]:
                 res_dir = resources.files("epub2shaw.data").joinpath(d)
                 files = [f for f in res_dir.iterdir() if f.is_file()]
                 for file in files:
                     print(file)
-
-        
-            for item in input_epub.infolist():
-                if not item.filename.endswith(".xhtml"):
-                    # just copy not HTML files to new epub
-                    output_epub.writestr(item, input_epub.read(item.filename))
-                else:
-                    # Transliterate HTML files before writing them
-                    print(item.filename)
-                    with input_epub.open(item.filename) as binary_file:
-                        # Decode bytes into a text stream
-                        with io.TextIOWrapper(binary_file, encoding='utf-8') as text_file:
-                            xhtml_content = text_file.read()
-
-                    transliterated_content = html2shaw(xhtml_content, transliterator)
-                    output_epub.writestr(item.filename, transliterated_content)
-
-        with open(output_file, 'wb') as f:
-            f.write(output_buffer.getvalue())
-                
+        """       
 
         constructed_words = transliterator.get_constructed_words()
         #if len(constructed_words) > 0:
