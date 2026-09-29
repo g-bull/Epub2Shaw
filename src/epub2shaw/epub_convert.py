@@ -97,89 +97,99 @@ def main():
 
     transliterator = Transliterator(readlex_dict, phrases)
 
+    pkg = None
+    root_path = None
+    root_file = None  # temporary
     with EPub_Reader(input_path) as reader:
-        items = reader.item_list()
+        pkg = reader.package
+        root_path = reader.root_path
+        root_file = reader.read_file(root_path)
 
-        output_buffer = io.BytesIO()
+    root_dir = Path(root_path).parent
 
-        with zipfile.ZipFile(output_buffer, 'w', zipfile.ZIP_DEFLATED) as output_epub:
+    items = pkg.item_list()
+    for item in items:
+        id = item["id"]
+        href = item["href"]
 
-            # write the mimetype tpo the archive
-            output_epub.writestr("mimetype", "application/epub+zip\n")
+        if item['media-type'] == 'application/xhtml+xml':
 
-            container_filename = "META-INF/container.xml"
+            # Transliterate HTML files before writing them
+            print(f"Transliterating: \"{href}\"")
+            xhtml_content = pkg.get_data(id).decode('utf-8')
 
-            container_xml = f"""
-            <?xml version="1.0" encoding="utf-8"?>
-            <container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0">
-                <rootfiles>
-                    <rootfile full-path="{reader.root_path}" media-type="application/oebps-package+xml"/>
-                </rootfiles>
-            </container>
-            """
-            output_epub.writestr(container_filename, container_xml)
-            output_epub.writestr(reader.root_path, reader.read_file(reader.root_path))
+            transliterated_content = html2shaw(xhtml_content, transliterator)
+            pkg.set_data(id, transliterated_content.encode('utf-8'))
 
+    output_buffer = io.BytesIO()
 
-            for item in items:
-                id = item["id"]
-                href = item["href"]
-                epub_path = (reader.root_dir.joinpath(href)).as_posix() 
+    with zipfile.ZipFile(output_buffer, 'w', zipfile.ZIP_DEFLATED) as output_epub:
 
-                data = reader.get_data(id)
-                #data  = self.archive.read(epub_path)
+        for item in items:
+            id = item["id"]
+            href = item["href"]
+            epub_path = (root_dir.joinpath(href)).as_posix() 
 
-                if not epub_path.endswith(".xhtml"):
-                    # just copy not HTML files to new epub
-                    print(f"not-HTML file {epub_path}")
-                    #data = input_epub.read(filename)
-                    output_epub.writestr(epub_path, data)
-                else:
-                    # Transliterate HTML files before writing them
-                    print(f"Transliterating: \"{epub_path}\"")
-                    xhtml_content = data.decode('utf-8')
+            data = pkg.get_data(id)
 
-                    transliterated_content = html2shaw(xhtml_content, transliterator)
-                    output_epub.writestr(epub_path, transliterated_content)
+            print(f"Writing {epub_path}")
+            output_epub.writestr(epub_path, data)
 
-        with open(output_file, 'wb') as f:
-            f.write(output_buffer.getvalue())
+        # write the mimetype tpo the archive
+        output_epub.writestr("mimetype", "application/epub+zip\n")
 
+        container_filename = "META-INF/container.xml"
+
+        container_xml = f"""
+        <?xml version="1.0" encoding="utf-8"?>
+        <container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0">
+            <rootfiles>
+                <rootfile full-path="{reader.root_path}" media-type="application/oebps-package+xml"/>
+            </rootfiles>
+        </container>
         """
-        for d in ["fonts", "css" ]:
-                res_dir = resources.files("epub2shaw.data").joinpath(d)
-                files = [f for f in res_dir.iterdir() if f.is_file()]
-                for file in files:
-                    print(file)
-        """       
+        output_epub.writestr(container_filename, container_xml)
+        output_epub.writestr(root_path, root_file)
 
-        constructed_words = transliterator.get_constructed_words()
-        #if len(constructed_words) > 0:
-        #    print("Constructed words:")
-        #    for word, transliteration in constructed_words.items():
-        #        print("    " + word + "  ->  " + transliteration)
-        #    print()
+    print(f"Writing: {output_file}")
+    with open(output_file, 'wb') as f:
+        f.write(output_buffer.getvalue())
 
-        unknown_words = transliterator.get_unknown_words()
-        #if len(unknown_words) > 0:
-        #    print("Unknown words:")
-        #    for word in unknown_words.keys():
-        #        print("    " + word)
-        #    print()
-        #    
-        #print("HTML translation complete!")
+    """
+    for d in ["fonts", "css" ]:
+            res_dir = resources.files("epub2shaw.data").joinpath(d)
+            files = [f for f in res_dir.iterdir() if f.is_file()]
+            for file in files:
+                print(file)
+    """       
 
-        unsorted_words = unknown_words | constructed_words
-        sorted_words = {k: [{ "Shaw" : unsorted_words[k], "tag" : "0"}] for k in sorted(unsorted_words)}
+    constructed_words = transliterator.get_constructed_words()
+    #if len(constructed_words) > 0:
+    #    print("Constructed words:")
+    #    for word, transliteration in constructed_words.items():
+    #        print("    " + word + "  ->  " + transliteration)
+    #    print()
 
-        with open("output.json", "w", encoding="utf-8") as f:
-            json.dump(sorted_words, f, indent=4, sort_keys=True, ensure_ascii=False)
+    unknown_words = transliterator.get_unknown_words()
+    #if len(unknown_words) > 0:
+    #    print("Unknown words:")
+    #    for word in unknown_words.keys():
+    #        print("    " + word)
+    #    print()
+    #    
+    #print("HTML translation complete!")
+
+    unsorted_words = unknown_words | constructed_words
+    sorted_words = {k: [{ "Shaw" : unsorted_words[k], "tag" : "0"}] for k in sorted(unsorted_words)}
+
+    with open("output.json", "w", encoding="utf-8") as f:
+        json.dump(sorted_words, f, indent=4, sort_keys=True, ensure_ascii=False)
+    
+    #if len(sorted_words) > 0:
+    #    print("Unknown words:")
+    #    for key, value in sorted_words.items():
+    #        print("    " + str(key) + "  ->  " + str(value))
+    #    print()
         
-        #if len(sorted_words) > 0:
-        #    print("Unknown words:")
-        #    for key, value in sorted_words.items():
-        #        print("    " + str(key) + "  ->  " + str(value))
-        #    print()
-            
-        print("HTML translation complete!")
+    print("HTML translation complete!")
 
