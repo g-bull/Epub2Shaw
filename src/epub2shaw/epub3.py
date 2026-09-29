@@ -68,7 +68,39 @@ class Manifest_Item:
         self.content: bytes | None = None
 
     def __str__(self):
+        return str(f"Item: href =\"{self.href}\" id =\"{self.id}\" media-type=\"{self.media_type}\" properties=\"{self.properties}\"")
+
+class Manifest:
+
+   
+    def __init__(self, element: etree.ElementTree):
+        self.id: str  | None = element.get("id")
+
+        self.items = {}
+        for child in element:
+            if child.tag != "{%s}item"  % opf_namespace:
+                raise Unexpected_Element_Exception(f"Unexpected element: \"{child.tag}\", expected \"item\"")
+            href = child.attrib.get("href")
+            id = child.attrib.get("id")
+            media_type = child.attrib.get("media-type")
+            fallback = child.attrib.get("fallback")
+            media_overlay = child.attrib.get("media-overlay")
+            properties = child.attrib.get("properties")
+            
+            self.items[id] = Manifest_Item(href=href, id=id, media_type=media_type, 
+                                         fallback=fallback,
+                                         media_overlay=media_overlay,
+                                         properties=properties
+                                         )
+
+        for item in self.items.values():
+            print(item)
+
+
+
+    def __str__(self):
         return str(f"Item: href =\"{self.href}\" id =\"{self.id}\" media-type=\"{self.media_type}\" properties=\"{properties}\"")
+
 
 class Spine:
 
@@ -134,7 +166,7 @@ class Package:
                     print(child.attrib)
                 elif child.tag == "{%s}manifest" % opf_namespace:
                     print("manifest")
-                    self.manifest = self._parse_manifest(child)
+                    self.manifest = Manifest(child)
                 elif child.tag == "{%s}spine" % opf_namespace:
                     self.spine = Spine(child)
                 elif child.tag == "{%s}guide" % opf_namespace:
@@ -145,28 +177,6 @@ class Package:
                     raise Unsupported_Feature_EXception("collection in a package element not supported yet!")
                 else:
                     raise Unexpected_Element_Exception(f"Unexpected element: \"{child.tag}\"")
-
-    def _parse_manifest(self, element):
-        manifest = {}
-        for child in element:
-            if child.tag != "{%s}item"  % opf_namespace:
-                raise Unexpected_Element_Exception(f"Unexpected element: \"{child.tag}\", expected \"item\"")
-            href = child.attrib.get("href")
-            id = child.attrib.get("id")
-            media_type = child.attrib.get("media-type")
-            fallback = child.attrib.get("fallback")
-            media_overlay = child.attrib.get("media-overlay")
-            properties = child.attrib.get("properties")
-            
-            manifest[id] = Manifest_Item(href=href, id=id, media_type=media_type, 
-                                         fallback=fallback,
-                                         media_overlay=media_overlay,
-                                         properties=properties
-                                         )
-
-        for item in manifest:
-            print(item)
-        return manifest
 
 
 
