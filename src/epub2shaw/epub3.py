@@ -35,29 +35,28 @@ opf_tag = { tag : f"{{{opf_namespace}}}{tag}" for tag in [
 }
 
 dc_tag = { tag : f"{{{dc_namespace}}}{tag}" for tag in [
+    #mandatory:
     "identifier", 
-    "date",
-    "rights",
-    "publisher",
-    "contributor",
-    "title",
-    "subject",
-    "description",
     "language",
+    "title",
+    #optional:
+    "contributor",
+    "coverage",
+    "creator"
+    "date",
+    "description",
+    "format",
+    "publisher",
+    "relation ",
+    "rights",
     "source",
-    "creator"]
+    "subject",
+    "type"]
 }
 
 
 #class Package:
 class Epub3_Exception(Exception):
-    def __init__(self, msg: str) -> None:
-        super().__init__(msg)
-        self.msg = msg
-
-    def __str__(self) -> str:
-        return repr(self.msg)
-class Namespace_Exception(Epub3_Exception):
     def __init__(self, msg: str) -> None:
         super().__init__(msg)
         self.msg = msg
@@ -81,6 +80,25 @@ class Unsupported_Feature_EXception(Epub3_Exception):
     def __str__(self) -> str:
         return repr(self.msg)
 
+class Meta:
+    """
+    The meta element provides a generic means of including package metadata.
+    Usage:    As child of the metadata element. Repeatable.
+
+    Attributes:
+        dir [optional]
+        id [optional]
+        property [required]
+        refines [optional]
+        scheme [optional]
+        xml:lang [optional]
+
+    Content Model: Text    
+    """
+   
+    def __init__(self, element: etree.ElementTree):
+        self.attrs = element.attrib
+        self.text = element.text
     
 class Metadata:
     """
@@ -104,9 +122,12 @@ class Metadata:
 
         self.items = []
         for child in element:
-            print(child.tag)
+            if child.tag == opf_tag["meta"]:
+               self.items.append(Meta(child))
+            else:
+                print(f"Metadata: ignoring \"{child.tag}\"")
+
             """
-            if child.tag != opf_tag[]"item"]:
                 raise Unexpected_Element_Exception(f"Unexpected element: \"{child.tag}\", expected \"{opf_tag["item"}\"")
             href = child.attrib.get("href")
             id = child.attrib.get("id")
@@ -128,21 +149,23 @@ class Metadata:
 
 class Manifest_Item:
    
-    def __init__(self, href, id, media_type, 
-                 fallback = None,
-                 media_overlay = None,
-                 properties = None):
-        self.href: str  | None = href
-        self.id: str  | None = id
-        self.media_type: str | None = media_type
-        self.fallback: str | None = fallback
-        media_overlay: str | None = media_overlay
-        self.properties: str | None = properties
+    def __init__(self, attrs: dict[str, str]):
+        self.attrs = attrs
         self.data: bytes | None = None
 
     def __str__(self):
         return str(f"Item: href =\"{self.href}\" id =\"{self.id}\" media-type=\"{self.media_type}\" properties=\"{self.properties}\"")
 
+    def set_data(self, data: bytes):
+        self.data = data
+
+    def get_data(self):
+        return self.data
+
+    def get_attrs(self):
+        return self.attrs
+
+    
 class Manifest:
 
    
@@ -153,26 +176,30 @@ class Manifest:
         for child in element:
             if child.tag != opf_tag["item"]:
                 raise Unexpected_Element_Exception(f"Unexpected element: \"{child.tag}\", expected \"{opf_tag["item"]}\"")
-            href = child.attrib.get("href")
-            id = child.attrib.get("id")
-            media_type = child.attrib.get("media-type")
-            fallback = child.attrib.get("fallback")
-            media_overlay = child.attrib.get("media-overlay")
-            properties = child.attrib.get("properties")
-            
-            self.items[id] = Manifest_Item(href=href, id=id, media_type=media_type, 
-                                         fallback=fallback,
-                                         media_overlay=media_overlay,
-                                         properties=properties
-                                         )
 
-        for item in self.items.values():
-            print(f"Manifest item: {item}")
-
+            id = child.get("id")
+            self.items[id] = Manifest_Item(child.attrib)
 
 
     def __str__(self):
         return str(f"Item: href =\"{self.href}\" id =\"{self.id}\" media-type=\"{self.media_type}\" properties=\"{properties}\"")
+
+    def set_data(self, id, data):
+
+        if id in self.items:
+            self.items[id].set_data(data)
+        else:
+            raise Epub3_Exception(f"Failed to set data for non-existent manifest id:: \"{id}\"")
+
+    def get_data(self, id):
+
+        if id in self.items:
+            return self.items[id].get_data(data)
+        else:
+            raise Epub3_Exception(f"Failed to get data for non-existent manifest id:: \"{id}\"")
+
+    def item_list(self):
+        return [ self.items[id].get_attrs() for id in self.items]
 
 
 class Spine:
@@ -189,9 +216,6 @@ class Spine:
                 raise Unexpected_Element_Exception(f"Unexpected element: \"{child.tag}\", expected \"{opf_tag["itemref"]}\"")
             idref = child.attrib.get("idref")
             self.idrefs.append(idref)
-
-        for item in self.idrefs:
-            print(f"Spine item: {item}")
 
     def __str__(self):
         return str(f"Item: href =\"{self.href}\" id =\"{self.id}\" media-type=\"{self.media_type}\" properties=\"{properties}\"")
@@ -222,9 +246,6 @@ class Guide:
                 raise Unexpected_Element_Exception(f"Unexpected element: \"{child.tag}\", expected \"{opf_tag["reference"]}\"")
             self.refs.append(child.attrib)
 
-        for item in self.refs:
-            print(f"Guide item: {item}")
-
 
     def __str__(self):
         return str(f"Item: href =\"{self.href}\" id =\"{self.id}\" media-type=\"{self.media_type}\" properties=\"{properties}\"")
@@ -232,39 +253,48 @@ class Guide:
 
 
 class Package:
+    """
+    The package element encapsulates all the information expressed in the package document.
+    Usage: REQUIRED root element [xml] of the package document.
+
+    Attributes:
+        dir [optional]
+        id [optional]
+        prefix [optional]
+        xml:lang [optional]
+        unique-identifier [required]
+        version [required]
+
+    Content Model: (in this order)
+        metadata [exactly 1]
+        manifest [exactly 1]
+        spine [exactly 1]
+        guide [0 or 1] (legacy)
+        bindings [0 or 1] (deprecated)
+        collection [0 or more]
+    """
 
     def __init__(self, tree: etree.ElementTree | None = None):
         self.root = None
         self.tree = tree
+        self.attrs = None
+
 
 
         self.metadata = None
-        self.manifest: dict[str, Manifest_Item] | None = None
+        self.manifest: Manifest | None = None
         self.spine = None
         self.guide = None
 
         if self.tree is not None:
             self.root = self.tree.getroot()
 
-            tag = etree.QName(self.root.tag)
-            if tag.namespace != opf_namespace:
-                raise Namespace_Exception(f"OPF package namespace is incorrect: \"{tag.namespace}\", expected \"{opf_namespace}\"")
-            if tag.localname != "package":
-                raise Unexpected_Element_Exception(f"Unexpected element: \"{tag.localname}\", expected \"{opf_tag["package"]}\"")
+            if self.root.tag != opf_tag["package"]:
+                raise Unexpected_Element_Exception(f"Unexpected element: \"{self.root.tag}\", expected \"{opf_tag["package"]}\"")
 
-
-            print(self.root.tag)
-            print(self.root.attrib)
+            self.attrs = self.root.attrib
+            print(f"Packagage attrs: {self.attrs}")
             for child in self.root:
-                """ Should see children in this order:
-                In this order:
-                    metadata [exactly 1]
-                    manifest [exactly 1]
-                    spine [exactly 1]
-                    guide [0 or 1] (legacy)
-                    bindings [0 or 1] (deprecated)
-                    collection [0 or more]
-                """
                 if child.tag == opf_tag["metadata"]:
                     self.metadata = Metadata(child)
                 elif child.tag == opf_tag["manifest"]:
@@ -280,6 +310,15 @@ class Package:
                 else:
                     raise Unexpected_Element_Exception(f"Unexpected element: \"{child.tag}\"")
 
+    def item_list(self):
+        return self.manifest.item_list()
+
+    def set_data(self, id: str, data: bytes):
+        self.manifest.set_data(id, data)
+
+    def get_data(self, id: str):
+        return self.manifest.get_data(id)
+
 
 
 
@@ -292,14 +331,28 @@ class EPub_Reader:
     def __enter__(self):
         self.archive = zipfile.ZipFile(self.file_path, 'r')
         self.root_path = self._get_root_path()
-        print("root_path: " + str(self.root_path))
+        self.root_dir = Path(self.root_path).parent
         self.package: Package = self._read_package()
-        #print(self.package_xml)
+
+        # Retrieve the archivew data according to the manifest.
+        items = self.package.item_list()
+        #print(f"Manifest contains {len(items)} items.")
+        #print(self.package.item_list())
+        for item in items:
+            id = item["id"]
+            href = item["href"]
+            epub_path = (self.root_dir.joinpath(href)).as_posix() 
+            data  = self.archive.read(epub_path)
+            self.package.set_data(id, data) 
+
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.archive:
             self.archive.close()
+
+    def item_list(self):
+        self.package.item_list()
 
     def _read_package(self):
         with self.archive.open(self.root_path) as xml_file:
@@ -319,4 +372,4 @@ class EPub_Reader:
             ):
                 if rootfile.get("media-type") == "application/oebps-package+xml":
                     return rootfile.get("full-path")
-                    
+        raise Epub3_Exception("Couldn't retrieve the rootfile path from META-INF/container.xml.")            
