@@ -16,7 +16,7 @@ import zipfile
 
 from .Transliterators import Transliterator
 from .html2shaw import html2shaw
-from .epub3 import EPub_Reader
+from .epub3 import EPub_Reader, EPub_Writer
 
 def main():
 
@@ -99,11 +99,12 @@ def main():
 
     pkg = None
     root_path = None
-    root_file = None  # temporary
+    root_file_xml = None  # temporary
     with EPub_Reader(input_path) as reader:
         pkg = reader.package
         root_path = reader.root_path
-        root_file = reader.read_file(root_path)
+        root_file_xml = reader.read_file(root_path).decode('utf-8')
+
 
     root_dir = Path(root_path).parent
 
@@ -121,6 +122,11 @@ def main():
             transliterated_content = html2shaw(xhtml_content, transliterator)
             pkg.set_data(id, transliterated_content.encode('utf-8'))
 
+    with EPub_Writer(output_file) as writer:
+        writer.write_package(pkg)
+        writer.write_rootfile(root_file_xml)
+        
+    """
     output_buffer = io.BytesIO()
 
     with zipfile.ZipFile(output_buffer, 'w', zipfile.ZIP_DEFLATED) as output_epub:
@@ -139,22 +145,23 @@ def main():
         output_epub.writestr("mimetype", "application/epub+zip\n")
 
         container_filename = "META-INF/container.xml"
-
-        container_xml = f"""
-        <?xml version="1.0" encoding="utf-8"?>
-        <container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0">
-            <rootfiles>
-                <rootfile full-path="{reader.root_path}" media-type="application/oebps-package+xml"/>
-            </rootfiles>
-        </container>
-        """
+    """
+    container_xml = f"""
+    <?xml version="1.0" encoding="utf-8"?>
+    <container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0">
+        <rootfiles>
+            <rootfile full-path="{reader.root_path}" media-type="application/oebps-package+xml"/>
+        </rootfiles>
+    </container>
+    """
+    """
         output_epub.writestr(container_filename, container_xml)
         output_epub.writestr(root_path, root_file)
 
     print(f"Writing: {output_file}")
     with open(output_file, 'wb') as f:
         f.write(output_buffer.getvalue())
-
+    """
     """
     for d in ["fonts", "css" ]:
             res_dir = resources.files("epub2shaw.data").joinpath(d)

@@ -218,7 +218,7 @@ class Spine:
             self.idrefs.append(idref)
 
     def __str__(self):
-        return str(f"Item: href =\"{self.href}\" id =\"{self.id}\" media-type=\"{self.media_type}\" properties=\"{properties}\"")
+        return str(f"Spinre: id =\"{self.id}\" page-progression-direction=\"{self.page_progression_direction}\" tov=\"{self.toc}\"")
 
 
 class Guide:
@@ -320,6 +320,55 @@ class Package:
         return self.manifest.get_data(id)
 
 
+class EPub_Writer:
+
+    def __init__(self, file_path: str, root_path: str = 'document/content.opf'):
+        self.file_path = file_path
+        self.archive = None
+        self.root_path = root_path
+        self.root_dir = Path(self.root_path).parent
+
+    def __enter__(self):
+        
+        self.output_buffer = io.BytesIO()
+        self.archive = zipfile.ZipFile(self.output_buffer, mode="w", compression=zipfile.ZIP_DEFLATED)
+
+        container_filename = "META-INF/container.xml"
+
+        container_xml = f"""<?xml version="1.0" encoding="utf-8"?>
+        <container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0">
+            <rootfiles>
+                <rootfile full-path="{self.root_path}" media-type="application/oebps-package+xml"/>
+            </rootfiles>
+        </container>
+        """
+        self.archive.writestr(container_filename, container_xml)
+
+        return self
+
+    def write_package(self, pkg: Package):
+
+        items = pkg.item_list()
+
+        for item in items:
+            id = item["id"]
+            href = item["href"]
+
+            epub_path = (self.root_dir.joinpath(href)).as_posix() 
+
+            data = pkg.get_data(id)
+            self.archive.writestr(epub_path, data)
+
+    def write_rootfile(self, xml : str):
+        self.archive.writestr(self.root_path, xml.encode('utf-8'))
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.archive:
+
+            self.archive.close()
+
+            with open(self.file_path, 'wb') as f:
+                f.write(self.output_buffer.getvalue())
 
 
 class EPub_Reader:
