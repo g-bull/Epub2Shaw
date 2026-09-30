@@ -196,11 +196,18 @@ class Manifest:
         if id in self.items:
             return self.items[id].get_data()
         else:
-            raise Epub3_Exception(f"Failed to get data for non-existent manifest id:: \"{id}\"")
+            raise Epub3_Exception(f"Failed to get data for non-existent manifest id: \"{id}\"")
 
     def item_list(self):
         return [ self.items[id].get_attrs() for id in self.items]
 
+    def add_item(self, id: str, href: str, media_type: str):
+        if id not in self.items:
+            self.items[id] = Manifest_Item({"href" : href,
+                                            "id" : id,
+                                            "media-type" : media_type})
+        else:
+            raise Epub3_Exception(f"Attempted to add non-unique id to the manifest: \"{id}\"")
 
 class Spine:
 
@@ -318,6 +325,10 @@ class Package:
 
     def get_data(self, id: str):
         return self.manifest.get_data(id)
+
+    def add_item(self, id: str, href: str, media_type: str):
+        self.manifest.add_item(id=id, href=href, media_type=media_type)
+
 
 
 class EPub_Writer:
