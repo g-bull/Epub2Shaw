@@ -42,7 +42,7 @@ def main():
     if "book" in config and ("words_filename" in config["book"]):
 
         custom_words_filename = config_dir.joinpath(config["book"]["words_filename"])
-        print(custom_words_filename)
+        #print(custom_words_filename)
         with open(custom_words_filename, 'r', encoding="utf-8") as file:
             json_data = file.read()
             extra_dict: dict[str, list[dict[str, str]]] = json.loads(json_data)
@@ -154,7 +154,7 @@ def main():
 
     with EPub_Writer(output_file) as writer:
         writer.write_package(pkg)
-        writer.write_rootfile(root_file_xml)
+        #writer.write_rootfile(root_file_xml)
         
 
     constructed_words = transliterator.get_constructed_words()

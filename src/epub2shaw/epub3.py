@@ -19,6 +19,13 @@ import zipfile
 opf_namespace = "http://www.idpf.org/2007/opf"
 dc_namespace = "http://purl.org/dc/elements/1.1/"
 
+namespaces = {
+    'opf':      "http://www.idpf.org/2007/opf",
+    'dc':       "http://purl.org/dc/elements/1.1/"
+}
+for ns in namespaces:
+    etree.register_namespace(ns, namespaces[ns])
+
 opf_tag = { tag : f"{{{opf_namespace}}}{tag}" for tag in [
     "package", 
     "metadata",
@@ -80,7 +87,7 @@ class Unsupported_Feature_EXception(Epub3_Exception):
     def __str__(self) -> str:
         return repr(self.msg)
 
-class Meta:
+class Metadata_Item:
     """
     The meta element provides a generic means of including package metadata.
     Usage:    As child of the metadata element. Repeatable.
@@ -97,9 +104,18 @@ class Meta:
     """
    
     def __init__(self, element: etree.ElementTree):
+        self.tag = element.tag
         self.attrs = element.attrib
         self.text = element.text
     
+    def to_xml(self, parent: etree.Element):
+        element = etree.SubElement(parent, self.tag)
+        for key in self.attrs:
+            element.set(key, self.attrs[key])
+
+        element.text = self.text
+        
+
 class Metadata:
     """
     The metadata element encapsulates meta information.
@@ -118,35 +134,22 @@ class Metadata:
     """
    
     def __init__(self, element: etree.ElementTree):
-        print(element.tag)
 
+        self.attrs = element.attrib
         self.items = []
         for child in element:
-            if child.tag == opf_tag["meta"]:
-               self.items.append(Meta(child))
-            else:
-                print(f"Metadata: ignoring \"{child.tag}\"")
+            self.items.append(Metadata_Item(child))
 
-            """
-                raise Unexpected_Element_Exception(f"Unexpected element: \"{child.tag}\", expected \"{opf_tag["item"}\"")
-            href = child.attrib.get("href")
-            id = child.attrib.get("id")
-            media_type = child.attrib.get("media-type")
-            fallback = child.attrib.get("fallback")
-            media_overlay = child.attrib.get("media-overlay")
-            properties = child.attrib.get("properties")
 
-            
-            self.items[id] = Manifest_Item(href=href, id=id, media_type=media_type, 
-                                         fallback=fallback,
-                                         media_overlay=media_overlay,
-                                         properties=properties
-                                         )
-            for item in self.items.values():
-                print(f"Manifest item: {item}")
-            """
-    
+    def to_xml(self, parent: etree.Element):
+        nsmap = {'dc': dc_namespace}
+        element = etree.SubElement(parent, "metadata", nsmap=nsmap)
+        for key in self.attrs:
+            element.set(key, self.attrs[key])
 
+        for item in self.items:
+            item.to_xml(element)
+        
 class Manifest_Item:
    
     def __init__(self, attrs: dict[str, str]):
@@ -165,12 +168,18 @@ class Manifest_Item:
     def get_attrs(self):
         return self.attrs
 
+    def to_xml(self, parent: etree.Element):
+        element = etree.SubElement(parent, "item")
+        for key in self.attrs:
+            element.set(key, self.attrs[key])
+        
+
     
 class Manifest:
 
    
-    def __init__(self, element: etree.ElementTree):
-        self.id: str  | None = element.get("id")
+    def __init__(self, element: etree.Element):
+        self.attrs: dict = element.attrib
 
         self.items = {}
         for child in element:
@@ -209,13 +218,20 @@ class Manifest:
         else:
             raise Epub3_Exception(f"Attempted to add non-unique id to the manifest: \"{id}\"")
 
+    def to_xml(self, parent: etree.Element):
+        element = etree.SubElement(parent, "manifest")
+        for key in self.attrs:
+            element.set(key, self.attrs[key])
+
+        for id in self.items:
+            self.items[id].to_xml(element)
+        
+
 class Spine:
 
    
-    def __init__(self, element: etree.ElementTree):
-        self.id: str  | None = element.get("id")
-        self.page_progression_direction: str  | None = element.get("page-progression-direction")
-        self.toc: str  | None = element.get("toc")
+    def __init__(self, element: etree.Element):
+        self.attrs = element.attrib
 
         self.idrefs = []
         for child in element:
@@ -226,6 +242,17 @@ class Spine:
 
     def __str__(self):
         return str(f"Spinre: id =\"{self.id}\" page-progression-direction=\"{self.page_progression_direction}\" tov=\"{self.toc}\"")
+
+    def to_xml(self, parent: etree.Element):
+        element = etree.SubElement(parent, "spine")
+        for key in self.attrs:
+            element.set(key, self.attrs[key])
+
+        for idref in self.idrefs:
+            child = etree.Element(opf_tag["itemref"])
+            child.set("idref", idref)
+            element.append(child)
+        
 
 
 class Guide:
@@ -244,8 +271,8 @@ class Guide:
     """
 
    
-    def __init__(self, element: etree.ElementTree):
-        self.attribs: dict  | None = element.attrib
+    def __init__(self, element: etree.Element):
+        self.attrs: dict = element.attrib
 
         self.refs = []
         for child in element:
@@ -257,7 +284,17 @@ class Guide:
     def __str__(self):
         return str(f"Item: href =\"{self.href}\" id =\"{self.id}\" media-type=\"{self.media_type}\" properties=\"{properties}\"")
 
+    def to_xml(self, parent: etree.Element):
+        element = etree.SubElement(parent, "guide")
+        for key in self.attrs:
+            element.set(key, self.attrs[key])
 
+        for ref in self.refs:
+            child = etree.Element(opf_tag["reference"])
+            for key in ref:
+                child.set(key, ref[key])
+            element.append(child)
+        
 
 class Package:
     """
@@ -300,7 +337,6 @@ class Package:
                 raise Unexpected_Element_Exception(f"Unexpected element: \"{self.root.tag}\", expected \"{opf_tag["package"]}\"")
 
             self.attrs = self.root.attrib
-            print(f"Packagage attrs: {self.attrs}")
             for child in self.root:
                 if child.tag == opf_tag["metadata"]:
                     self.metadata = Metadata(child)
@@ -329,6 +365,23 @@ class Package:
     def add_item(self, id: str, href: str, media_type: str):
         self.manifest.add_item(id=id, href=href, media_type=media_type)
 
+    def to_xml(self) -> bytes:
+        nsmap = {None: opf_namespace}
+        element = etree.Element(opf_tag["package"], nsmap=nsmap)
+        if self.attrs is not None:
+            for key in self.attrs:
+                element.set(key, self.attrs[key])
+        self.metadata.to_xml(element)
+        self.manifest.to_xml(element)
+        self.spine.to_xml(element)
+        self.guide.to_xml(element)
+        etree.cleanup_namespaces(element)
+
+        xml_data = etree.tostring(element, xml_declaration=True, encoding="UTF-8", pretty_print=True)
+
+        tree = etree.ElementTree(element)
+        tree.write("output.xml", xml_declaration=True, encoding="UTF-8", pretty_print=True)    
+        return xml_data
 
 
 class EPub_Writer:
@@ -344,6 +397,7 @@ class EPub_Writer:
         self.output_buffer = io.BytesIO()
         self.archive = zipfile.ZipFile(self.output_buffer, mode="w", compression=zipfile.ZIP_DEFLATED)
 
+
         container_filename = "META-INF/container.xml"
 
         container_xml = f"""<?xml version="1.0" encoding="utf-8"?>
@@ -355,9 +409,14 @@ class EPub_Writer:
         """
         self.archive.writestr(container_filename, container_xml)
 
+        self.archive.writestr("mimetype", b"application/epub+zip")
+
         return self
 
     def write_package(self, pkg: Package):
+        
+        self.archive.writestr(self.root_path, pkg.to_xml())
+
 
         items = pkg.item_list()
 
@@ -370,8 +429,8 @@ class EPub_Writer:
             data = pkg.get_data(id)
             self.archive.writestr(epub_path, data)
 
-    def write_rootfile(self, xml : str):
-        self.archive.writestr(self.root_path, xml.encode('utf-8'))
+    #def write_rootfile(self, xml : str):
+    #    self.archive.writestr(self.root_path, xml.encode('utf-8'))
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.archive:
@@ -396,8 +455,6 @@ class EPub_Reader:
 
         # Retrieve the archivew data according to the manifest.
         items = self.package.item_list()
-        #print(f"Manifest contains {len(items)} items.")
-        #print(self.package.item_list())
         for item in items:
             id = item["id"]
             href = item["href"]
