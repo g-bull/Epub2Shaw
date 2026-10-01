@@ -18,6 +18,8 @@ from .Transliterators import Transliterator
 from .html2shaw import html2shaw
 from .epub3 import EPub_Reader, EPub_Writer
 
+from bs4 import BeautifulSoup
+
 def main():
 
     # Check if arguments were passed
@@ -98,15 +100,8 @@ def main():
     transliterator = Transliterator(readlex_dict, phrases)
 
     pkg = None
-    root_path = None
-    root_file_xml = None  # temporary
     with EPub_Reader(input_path) as reader:
         pkg = reader.package
-        root_path = reader.root_path
-        root_file_xml = reader.read_file(root_path).decode('utf-8')
-
-
-    root_dir = Path(root_path).parent
 
     # Add custom fonts and styles to the epub package.
     for d in ["fonts", "css" ]:
@@ -114,6 +109,7 @@ def main():
         parent = res_dir.parent.as_posix()
 
         filenames = [f for f in res_dir.iterdir() if f.is_file()]
+        css_hrefs = []  # collect lits of css files for which links will need to e added head element of each html file.
         for filename in filenames:
             epub_href = str(filename.as_posix()).removeprefix(str(parent) + '/')
 
@@ -129,6 +125,7 @@ def main():
                 epub_media_type = None
                 if epub_href.endswith('.css'):
                     epub_media_type = 'text/css'
+                    css_hrefs.append(epub_href)
                 elif epub_href.endswith('.otf'):
                     epub_media_type = 'application/vnd.ms-opentype'
                 else:
@@ -149,12 +146,31 @@ def main():
             xhtml_content = pkg.get_data(id).decode('utf-8')
 
             transliterated_content = html2shaw(xhtml_content, transliterator)
+
+            # New links should be appended to the head element, and be of the form:
+            #    <link href="../css/new_file.css" rel="stylesheet" type="text/css"/>
+            # However the href in the link nedds to be adjusted for the relative location of the html file.
+            for css_href in css_hrefs:
+                relative_css_href = str(Path('/'+css_href).relative_to(Path('/'+href).parent, walk_up=True).as_posix())
+                link_to_insert = f'<link href="{relative_css_href}" rel="stylesheet" type="text/css"/>'
+                soup = BeautifulSoup(transliterated_content, "xml")
+                if soup.head:
+                    soup.head.append(BeautifulSoup(link_to_insert, "xml").find())
+
+                # now change the language to Shavian
+                html_tag = soup.find('html')
+                if html_tag:
+                    # Update or add the attributes
+                    html_tag['lang'] = 'en-Shaw'
+                    html_tag['xml:lang'] = 'en-Shaw'
+
+                transliterated_content = str(soup)
+
             pkg.set_data(id, transliterated_content.encode('utf-8'))
 
 
     with EPub_Writer(output_file) as writer:
         writer.write_package(pkg)
-        #writer.write_rootfile(root_file_xml)
         
 
     constructed_words = transliterator.get_constructed_words()
