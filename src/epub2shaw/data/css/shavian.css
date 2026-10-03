@@ -15,6 +15,12 @@
     src: url("../fonts/DoolittleGaramond-Italic.otf");
 }
 
+
+.sentence-space {
+    padding-right: 0.25em; /* Adjust this value for wider or narrower spacing between sentences*/
+}
+
+
 body{
   font-family: "DoolittleGaramond", serif;
 }

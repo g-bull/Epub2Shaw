@@ -20,6 +20,8 @@ from .epub3 import EPub_Reader, EPub_Writer
 
 from bs4 import BeautifulSoup
 
+from .xhtml import add_element_after_sentences
+
 def main():
 
     # Check if arguments were passed
@@ -145,6 +147,9 @@ def main():
             print(f"Transliterating: \"{href}\"")
             xhtml_content = pkg.get_data(id).decode('utf-8')
 
+            # Add spacing between sentences
+            xhtml_content = add_element_after_sentences(xhtml_content, '<span class="sentence-space"> </span>')
+
             transliterated_content = html2shaw(xhtml_content, transliterator)
 
             # New links should be appended to the head element, and be of the form:
@@ -165,6 +170,7 @@ def main():
                     html_tag['xml:lang'] = 'en-Shaw'
 
                 transliterated_content = str(soup)
+
 
             pkg.set_data(id, transliterated_content.encode('utf-8'))
 
