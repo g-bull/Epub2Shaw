@@ -21,6 +21,7 @@ from .epub3 import EPub_Reader, EPub_Writer
 from bs4 import BeautifulSoup
 
 from .xhtml import add_element_after_sentences
+from .xhtml import remove_nav_items
 
 def main():
 
@@ -105,7 +106,7 @@ def main():
     with EPub_Reader(input_path) as reader:
         pkg = reader.package
 
-    # Add custom fonts and styles to the epub package.
+    # Add fonts, styles to the epub package.
     for d in ["fonts", "css" ]:
         res_dir = resources.files("epub2shaw.data").joinpath(d)
         parent = res_dir.parent.as_posix()
@@ -134,6 +135,66 @@ def main():
                     raise Exception(f"Cannot infer media type for \"{epub_href}\".")
                 
                 pkg.add_item(href = epub_href, id = epub_id, media_type = epub_media_type)
+                pkg.set_data(epub_id, data)
+
+    if "book" in config and ("remove_items" in config["book"]):
+
+
+        remove_id_list = config["book"]["remove_items"]
+
+        items = pkg.item_list()
+        remove_href_list = [ item["href"] for item in items if item["id"] in remove_id_list ]
+
+        nav_item = [item for item in items if "properties" in item and item["properties"] == "nav"]
+        if len(nav_item) != 1:
+            print(f"Error: Expected 1 nav item, found {len(nav_item)}.")
+        else:
+            xhtml_content = pkg.get_data(nav_item[0]["id"]).decode('utf-8')
+            xhtml_content = remove_nav_items(xhtml_content, remove_href_list)
+            pkg.set_data(nav_item[0]["id"], xhtml_content.encode('utf-8'))
+
+
+        for id in remove_id_list:
+            pkg.remove_item(id)
+
+    # Add book specific data to the epub, overwriting anything already in the ebook with the same path. 
+    if "book" in config and ("copy_data" in config["book"]):
+        data_dir = config_dir.joinpath(config["book"]["copy_data"])
+        parent = data_dir.as_posix()
+
+        filenames = [f for f in data_dir.rglob("*") if f.is_file()]
+        for filename in filenames:
+            epub_href = str(filename.as_posix()).removeprefix(str(parent) + '/')
+
+            # If the href already exists in the epub, use its id for the copied file
+            epub_id = pkg.id_of_href(epub_href)
+            replace = False
+            if epub_id is None:
+                epub_id = epub_href.replace('/', ':')
+                # FIXME: check epub_id is unique, and make unique if it isn't
+                print(f"Adding: id=\"{epub_id}\" href=\"{epub_href}\".")
+            else:
+                print(f"Replacing: id=\"{epub_id}\" href=\"{epub_href}\".")
+                replace = True
+
+            with open(filename, 'rb') as file:
+                data = file.read()
+                epub_media_type = None
+                if epub_href.endswith('.css'):
+                    epub_media_type = 'text/css'
+                    css_hrefs.append(epub_href)
+                elif epub_href.endswith('.otf'):
+                    epub_media_type = 'application/vnd.ms-opentype'
+                elif epub_href.endswith('.jpg'):
+                    epub_media_type = 'image/jpeg'
+                elif epub_href.endswith('.png'):
+                    epub_media_type = 'image/png'
+                else:
+                    raise Exception(f"Cannot infer media type for \"{epub_href}\".")
+
+                print(f"media_type=\"{epub_media_type}\".")
+
+                pkg.add_item(href = epub_href, id = epub_id, media_type = epub_media_type, replace = replace)
                 pkg.set_data(epub_id, data)
 
     items = pkg.item_list()

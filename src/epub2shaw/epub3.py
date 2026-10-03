@@ -210,13 +210,28 @@ class Manifest:
     def item_list(self):
         return [ self.items[id].get_attrs() for id in self.items]
 
-    def add_item(self, id: str, href: str, media_type: str):
+    def add_item(self, id: str, href: str, media_type: str, replace: bool = False):
         if id not in self.items:
+            self.items[id] = Manifest_Item({"href" : href,
+                                            "id" : id,
+                                            "media-type" : media_type})
+        elif replace:
             self.items[id] = Manifest_Item({"href" : href,
                                             "id" : id,
                                             "media-type" : media_type})
         else:
             raise Epub3_Exception(f"Attempted to add non-unique id to the manifest: \"{id}\"")
+
+    def remove_item(self, id : str):
+        self.items.pop(id, None) # Don't raise KeyError if id not in dictionary
+
+    def id_of_href(self, href: str) -> str | None:
+        items_ = self.item_list()
+        for item_ in items_:
+            if item_["href"] == href:
+                return item_["id"]
+        return None
+
 
     def to_xml(self, parent: etree.Element):
         element = etree.SubElement(parent, "manifest")
@@ -242,6 +257,9 @@ class Spine:
 
     def __str__(self):
         return str(f"Spinre: id =\"{self.id}\" page-progression-direction=\"{self.page_progression_direction}\" tov=\"{self.toc}\"")
+
+    def remove_item(self, id : str):
+        self.idrefs = [ idref for idref in self.idrefs if idref != id]
 
     def to_xml(self, parent: etree.Element):
         element = etree.SubElement(parent, "spine")
@@ -362,8 +380,15 @@ class Package:
     def get_data(self, id: str):
         return self.manifest.get_data(id)
 
-    def add_item(self, id: str, href: str, media_type: str):
-        self.manifest.add_item(id=id, href=href, media_type=media_type)
+    def add_item(self, id: str, href: str, media_type: str, replace: bool = False):
+        self.manifest.add_item(id=id, href=href, media_type=media_type, replace=replace)
+
+    def remove_item(self, id: str):
+        self.manifest.remove_item(id=id)
+        self.spine.remove_item(id=id)
+
+    def id_of_href(self, href: str) -> str | None:
+        return self.manifest.id_of_href(href)
 
     def to_xml(self) -> bytes:
         nsmap = {None: opf_namespace}

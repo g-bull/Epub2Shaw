@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup, NavigableString
 
 import copy
 
+
 # Load the spaCy English language model
 # Make sure you run 'python -m spacy download en_core_web_sm' first
 nlp = spacy.load("en_core_web_sm")
@@ -38,7 +39,21 @@ def add_element_after_sentences(xhtml_content, element_to_insert):
 
     return str(soup)                
            
+def remove_nav_items(xhtml_content, hrefs_to_remove):
+    # Use 'xml' parser to maintain XHTML/XML compliance
+    soup = BeautifulSoup(xhtml_content, "xml")
 
+    # Find all <li> tags in the document
+    for li in soup.find_all('li'):
+        # Look for an anchor <a> tag inside the list item
+        a_tag = li.find('a')
+        
+        if a_tag and a_tag.has_attr('href'):
+            # If the href value matches any URL in your target list, remove the <li> completely
+            if a_tag['href'] in hrefs_to_remove:
+                li.decompose()
+
+    return str(soup)                
 
 # ==========================================
 # EXAMPLE USAGE
@@ -46,26 +61,84 @@ def add_element_after_sentences(xhtml_content, element_to_insert):
 if __name__ == "__main__":
 
     # Test XHTML document
-    xhtml_input = """<?xml version="1.0" encoding="UTF-8"?>
+    xhtml_input = """<?xml version="1.0" encoding="utf-8"?>
     <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="en-US" epub:prefix="z3998: http://www.daisy.org/z3998/2012/vocab/structure/, se: https://standardebooks.org/vocab/1.0" xml:lang="en-US">
-            <head>
-                <link href="../css/core.css" rel="stylesheet" type="text/css"/>
-                <link href="../css/local.css" rel="stylesheet" type="text/css"/>
-            </head>
-            <body epub:type="bodymatter z3998:fiction">
-                <section id="chapter-3" role="doc-chapter" epub:type="chapter">
-        <div>
-            <p>This is the first sentence. “Major Sholto was a very particular friend of papa’s,” she said. He introduced Mr. Sherlock Holmes. This is the second sentence! Here is a third one.</p>
-            <p>Another paragraph starts here. Does it catch questions? Yes, it does.</p>
-        </div>
-                </section>
-    </body>
-    </html>"""
+	<head>
+		<title>Table of Contents</title>
+	</head>
+	<body epub:type="frontmatter">
+		<nav aria-labelledby="toc-title" id="toc" role="doc-toc" epub:type="toc">
+			<h2 id="toc-title" epub:type="title">Table of Contents</h2>
+			<ol>
+				<li>
+					<a href="text/titlepage.xhtml">Titlepage</a>
+				</li>
+				<li>
+					<a href="text/imprint.xhtml">Imprint</a>
+				</li>
+				<li>
+					<a href="text/chapter-1.xhtml">I: The Science of Deduction</a>
+				</li>
+				<li>
+					<a href="text/chapter-2.xhtml">II: The Statement of the Case</a>
+				</li>
+				<li>
+					<a href="text/chapter-3.xhtml">III: In Quest of a Solution</a>
+				</li>
+				<li>
+					<a href="text/chapter-4.xhtml">IV: The Story of the Bald-Headed Man</a>
+				</li>
+				<li>
+					<a href="text/chapter-5.xhtml">V: The Tragedy of Pondicherry Lodge</a>
+				</li>
+				<li>
+					<a href="text/chapter-6.xhtml">VI: Sherlock Holmes Gives a Demonstration</a>
+				</li>
+				<li>
+					<a href="text/chapter-7.xhtml">VII: The Episode of the Barrel</a>
+				</li>
+				<li>
+					<a href="text/chapter-8.xhtml">VIII: The Baker Street Irregulars</a>
+				</li>
+				<li>
+					<a href="text/chapter-9.xhtml">IX: A Break in the Chain</a>
+				</li>
+				<li>
+					<a href="text/chapter-10.xhtml">X: The End of the Islander</a>
+				</li>
+				<li>
+					<a href="text/chapter-11.xhtml">XI: The Great Agra Treasure</a>
+				</li>
+				<li>
+					<a href="text/chapter-12.xhtml">XII: The Strange Story of Jonathan Small</a>
+				</li>
+				<li>
+					<a href="text/colophon.xhtml">Colophon</a>
+				</li>
+				<li>
+					<a href="text/uncopyright.xhtml">Uncopyright</a>
+				</li>
+			</ol>
+		</nav>
+		<nav aria-labelledby="landmarks-title" id="landmarks" epub:type="landmarks">
+			<h2 id="landmarks-title" epub:type="title">Landmarks</h2>
+			<ol>
+				<li>
+					<a href="text/titlepage.xhtml" epub:type="frontmatter">Frontmatter</a>
+				</li>
+				<li>
+					<a href="text/chapter-1.xhtml" epub:type="bodymatter">The Sign of the Four</a>
+				</li>
+			</ol>
+		</nav>
+	</body>
+    </html>
+    """
 
     # For visual check of insertion
-    element_to_insert = '<span style="color: green; margin-left: 5px;"> [XXX] </span>'
+    hrefs_to_remove = [ "text/colophon.xhtml", "text/imprint.xhtml", "text/uncopyright.xhtml" ]
 
-    modified_xhtml = add_element_after_sentences(xhtml_input, element_to_insert)
+    modified_xhtml = remove_nav_items(xhtml_input, hrefs_to_remove)
     print(modified_xhtml)
 
 
